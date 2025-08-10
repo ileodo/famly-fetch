@@ -10,21 +10,26 @@ Auth has two versions:
 """
 
 import argparse
-from datetime import datetime
 import os
 import shutil
 import time
 import urllib.request
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import urlparse
 
 import piexif
 import piexif.helper
 
 from api_client import ApiClient
 
+
 class FamlyDownloader:
 
     def __init__(self, email, password):
-        self._pictures_folder = "pictures"
+        self._pictures_folder: Path = Path("pictures")
+        self._pictures_folder.mkdir(parents=True, exist_ok=True)
+
         self._apiClient = ApiClient()
         self._apiClient.login(email, password)
 
@@ -96,13 +101,11 @@ class FamlyDownloader:
 
     def download_tagged_images(self, child_id, first_name):
         """Download images by childId"""
-        imgs = self._apiClient.make_api_request(
-            "GET", "/api/v2/images/tagged", params={"childId": child_id}
-        )
+        imgs = self._apiClient.make_api_request("GET", "/api/v2/images/tagged", params={"childId": child_id})
 
         print("Fetching %s tagged images for %s" % (len(imgs), first_name))
 
-        for img_no, img in enumerate(imgs, start=1):
+        for img_no, img in enumerate(reversed(imgs), start=1):
             print(" - image {} ({}/{})".format(img["imageId"], img_no, len(imgs)))
 
             url = self.get_image_url(img)
@@ -113,14 +116,10 @@ class FamlyDownloader:
             self.fetch_image(url, img["imageId"], first_name, img["createdAt"])
 
     def download_images_from_messages(self):
-        conversationsIds = self._apiClient.make_api_request(
-            "GET", "/api/v2/conversations"
-        )
+        conversationsIds = self._apiClient.make_api_request("GET", "/api/v2/conversations")
 
         for conv_id in conversationsIds:
-            conversation = self._apiClient.make_api_request(
-                "GET", "/api/v2/conversations/%s" % (conv_id["conversationId"])
-            )
+            conversation = self._apiClient.make_api_request("GET", "/api/v2/conversations/%s" % (conv_id["conversationId"]))
 
             for msg in conversation["messages"]:
                 text = msg["body"] + " - " + msg["author"]["title"]
@@ -134,17 +133,31 @@ class FamlyDownloader:
     def fetch_image(self, url, id, first_name, date, text=None):
         req = urllib.request.Request(url=url)
 
+        file_ext = os.path.splitext(urlparse(url).path)[1].lower()
+
         captured_date = datetime.fromisoformat(date).strftime("%Y-%m-%d_%H-%M-%S")
         captured_date_for_exif = datetime.fromisoformat(date).strftime("%Y:%m:%d %H:%M:%S")
 
-        filename = os.path.join(self._pictures_folder, "{}-{}-{}.jpg".format(
-            first_name, captured_date, id)
+        filename: Path = Path(
+            self._pictures_folder,
+            "{}-{}-{}{}".format(first_name, captured_date, id, file_ext),
         )
+
+        filename.exists()
+        if filename.exists():
+            print(f"File {filename} already exists, skipping")
+            return
 
         with urllib.request.urlopen(req) as r, open(filename, "wb") as f:
             if r.status != 200:
                 raise "B0rked! %s" % r.read().decode("utf-8")
             shutil.copyfileobj(r, f)
+
+        try:
+            piexif.load(filename)
+        except piexif._exceptions.InvalidImageDataError:
+            print("Not a JPEG/TIFF or corrupted image, skip exif updating.")
+            return
 
         # Prepare the EXIF data
         exif_dict = {"Exif": {piexif.ExifIFD.DateTimeOriginal: captured_date_for_exif.encode()}}
@@ -158,16 +171,20 @@ class FamlyDownloader:
         piexif.insert(exif_bytes, filename)
 
 
-
-if __name__ == "__main__":
+def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description="Fetch kids' images from famly.co")
     parser.add_argument("email", help="Auth email")
     parser.add_argument("password", help="Auth password")
-    parser.add_argument("--no-tagged", action='store_true', help="Don't download tagged images")
-    parser.add_argument("-j", "--journey", action='store_true', help="Download images from child Learning Journey")
-    parser.add_argument("-n", "--notes", action='store_true', help="Download images from child notes")
-    parser.add_argument("-m", "--messages", action='store_true', help="Download images from messages")
+    parser.add_argument("--no-tagged", action="store_true", help="Don't download tagged images")
+    parser.add_argument(
+        "-j",
+        "--journey",
+        action="store_true",
+        help="Download images from child Learning Journey",
+    )
+    parser.add_argument("-n", "--notes", action="store_true", help="Download images from child notes")
+    parser.add_argument("-m", "--messages", action="store_true", help="Download images from messages")
     args = parser.parse_args()
 
     # Create the downloader
@@ -201,3 +218,7 @@ if __name__ == "__main__":
             famly_downloader.download_images_from_learning_journey(child_id, first_name)
         if args.notes:
             famly_downloader.download_images_from_notes(child_id, first_name)
+
+
+if __name__ == "__main__":
+    main()
