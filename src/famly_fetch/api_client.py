@@ -24,7 +24,7 @@ def get_device_id() -> str:
 
 class ApiClient:
     _access_token = None
-    _base = "https://app.famly.co"
+    _base = "https://familyapp.brighthorizons.co.uk"
 
     def __init__(self, user_agent: str | None = None, access_token: str | None = None):
         """
@@ -158,6 +158,16 @@ class ApiClient:
             # The server couldn't fulfill the request
             print("Error code: ", e.code)
             print("Response body: ", e.read())
+
+    def feed(self, cursor: str | None = None, older_than: str | None = None):
+        params = {}
+        if cursor:
+            params["cursor"] = cursor
+        if older_than:
+            params["olderThan"] = older_than
+        response = self.make_api_request("GET", "/api/feed/feed/feed", params=params)
+        print(response)
+        return response
 
     def me_me_me(self):
         """

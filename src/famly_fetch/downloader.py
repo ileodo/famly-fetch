@@ -254,6 +254,18 @@ class FamlyDownloader:
 
         self.save_state()
 
+    def download_images_from_feed(self):
+        params = {}
+        # if cursor:
+        #     params["cursor"] = cursor
+        # if older_than:
+        #     params["olderThan"] = older_than
+        response = self._apiClient.make_api_request(
+            "GET", "/api/feed/feed/feed", params=params
+        )
+        print(response)
+        return response
+
     def download_file_path(self, img: BaseImage, filename_prefix: str) -> Path:
         """Generate the file path for the downloaded image."""
 

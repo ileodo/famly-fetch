@@ -171,6 +171,10 @@ def main(
             filename_pattern=filename_pattern,
         )
 
+        feed = True
+        if feed:
+            famly_downloader.download_images_from_feed()
+        return
         if messages:
             famly_downloader.download_images_from_messages()
 
