@@ -207,7 +207,6 @@ def main(
         if liked:
             famly_downloader.download_images_from_feed(parent_ids)
 
-        return
     except Exception as e:
         click.secho(f"An exception occurred: {e}", fg="red")
 
