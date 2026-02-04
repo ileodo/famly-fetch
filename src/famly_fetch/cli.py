@@ -39,8 +39,8 @@ def get_version():
 @click.option(
     "--famly-base-url",
     envvar="FAMLY_BASE_URL",
-    help="Your famly.co instance baseurl, can be set via FAMLY_BASE_URL env var",
-    metavar="TOKEN",
+    help="Your famly.co instance baseurl (default: https://app.famly.co), can be set via FAMLY_BASE_URL env var",
+    metavar="URL",
     default="https://app.famly.co",
     type=str,
 )
