@@ -278,7 +278,7 @@ class FamlyDownloader:
             older_than = last_item["createdDate"]
             for feed_item in response["feedItems"]:
                 if not feed_item["originatorId"].startswith("Post:"):
-                    print("Skipping non-post feed item: ", feed_item["originatorId"])
+                    # not a Post item
                     continue
                 create_date = feed_item["createdDate"]
                 for img_dict in feed_item["images"]:
@@ -290,9 +290,7 @@ class FamlyDownloader:
                             if like["loginId"] in liked_by_ids
                         ]
                     ):
-                        print(
-                            f"Skipping unliked image {img_dict['imageId']} in post at {create_date}"
-                        )
+                        # not liked by parents
                         continue
                     img = Image.from_dict(
                         img_dict,
